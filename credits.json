@@ -1,0 +1,106 @@
+[
+  {
+    "role": "Owner / Creative Lead",
+    "people": [
+      {
+        "name": "Crewpostor",
+        "credit": "Project owner, direction, and concept"
+      }
+    ]
+  },
+  {
+    "role": "Core Team",
+    "people": [
+      {
+        "name": "BG4",
+        "credit": "Lead developer, scripting & writer"
+      },
+      {
+        "name": "Marcus Vein",
+        "credit": "Game design & QA"
+      },
+      {
+        "name": "Gray",
+        "credit": "Optimization & builds"
+      }
+    ]
+  },
+  {
+    "role": "Lead Composer & Audio",
+    "people": [
+      {
+        "name": "Jacob",
+        "credit": "Lead composer & mixing"
+      },
+      {
+        "name": "Dartze",
+        "credit": "Composer & SFX"
+      }
+    ]
+  },
+  {
+    "role": "Artists & Animators",
+    "people": [
+      {
+        "name": "Crimson",
+        "credit": "Character concepts & backgrounds"
+      },
+      {
+        "name": "Deiv the Mongus",
+        "credit": "Sprite work & animations"
+      },
+      {
+        "name": "FroggoAnimationsYT",
+        "credit": "Cutscene animation"
+      }
+    ]
+  },
+  {
+    "role": "Charting & Scripting",
+    "people": [
+      {
+        "name": "awhnathan",
+        "credit": "Charting & level tuning"
+      },
+      {
+        "name": "safone",
+        "credit": "Scripting & integration"
+      }
+    ]
+  },
+  {
+    "role": "Voice Actors",
+    "people": [
+      {
+        "name": "Jesusfan",
+        "credit": "Yeshua & cameos"
+      },
+      {
+        "name": "JF1",
+        "credit": "Additional VO"
+      }
+    ]
+  },
+  {
+    "role": "Special Characters",
+    "people": [
+      {
+        "name": "Jakob Brandon",
+        "credit": "The bronze blur \u2014 calm, normal kid who snaps when pushed"
+      },
+      {
+        "name": "Jacob Blevins",
+        "credit": "Wildcard antagonist \u2014 chaotic and explosive"
+      }
+    ]
+  },
+  {
+    "role": "Thanks & Community",
+    "people": [
+      {
+        "name": "CrewCreators Community",
+        "credit": "Playtesters, early feedback, and hype"
+      }
+    ]
+  }
+]
