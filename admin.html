@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sabotaged Sessions — Admin</title>
+<style>
+  :root{
+    --bg:#060608; --panel:#0f0f12; --muted:#9aa6af; --accent:#ff2d6d;
+    --neon: 0 8px 30px rgba(255,45,109,0.12);
+    --glass: rgba(255,255,255,0.03);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,#050507,#0b0b10);color:#eaf0f6}
+  a{color:inherit;text-decoration:none}
+  /* layout */
+  .wrap{max-width:1200px;margin:28px auto;padding:18px;display:grid;grid-template-columns:260px 1fr;gap:18px}
+  /* LOGIN overlay */
+  #overlay{position:fixed;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0.6),rgba(0,0,0,0.75));display:flex;align-items:center;justify-content:center;z-index:60}
+  .loginCard{width:360px;background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:22px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);box-shadow:var(--neon);text-align:center}
+  .loginCard h2{margin:0 0 8px 0;color:var(--accent)}
+  .input{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#fff;margin-top:8px}
+  .btn{display:inline-block;padding:10px 14px;border-radius:10px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-weight:700;margin-top:12px}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
+  .muted{color:var(--muted);font-size:13px}
+  .error{color:#ff7b7b;margin-top:8px;display:none}
+
+  /* sidebar */
+  .sidebar{background:var(--panel);border-radius:12px;padding:14px;border:1px solid rgba(255,255,255,0.03);height:calc(100vh - 56px);position:sticky;top:28px;display:flex;flex-direction:column;gap:12px}
+  .brand{display:flex;align-items:center;gap:10px}
+  .mark{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#111,#0b0b0f);display:flex;align-items:center;justify-content:center;color:var(--accent);font-weight:800}
+  .title{font-weight:800;color:var(--accent)}
+  .nav{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+  .nav button{background:transparent;border:none;color:var(--muted);padding:8px;border-radius:8px;text-align:left;cursor:pointer}
+  .nav button.active{background:rgba(255,45,109,0.06);color:var(--accent);font-weight:800}
+
+  /* content panels */
+  .panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);min-height:380px}
+  .grid{display:grid;grid-template-columns:1fr 380px;gap:16px}
+  /* editors */
+  textarea{width:100%;height:320px;background:transparent;border:1px solid rgba(255,255,255,0.04);padding:12px;border-radius:8px;color:#fff;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace}
+  .controls{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+  .small{font-size:13px;color:var(--muted)}
+
+  /* live card preview */
+  .cardPreview{background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.02)}
+  .newsItem{padding:10px;border-left:4px solid rgba(255,45,109,0.9);border-radius:6px;background:rgba(0,0,0,0.2);margin-bottom:8px}
+  .newsItem h4{margin:0;color:var(--accent)}
+  .newsItem .date{font-size:12px;color:var(--muted);margin-bottom:6px}
+
+  /* history */
+  .history{max-height:150px;overflow:auto;background:rgba(255,255,255,0.01);padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.02)}
+  .histRow{font-size:13px;color:var(--muted);padding:6px;border-bottom:1px dashed rgba(255,255,255,0.02)}
+
+  /* footer */
+  .footer{grid-column:1/-1;text-align:center;color:var(--muted);margin-top:12px}
+  @media(max-width:980px){.wrap{grid-template-columns:1fr;}.sidebar{position:relative;height:auto;}}
+</style>
+</head>
+<body>
+
+<div id="overlay" aria-hidden="false">
+  <div class="loginCard" role="dialog" aria-modal="true">
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px"><div class="mark">⚠️</div><div class="title">Sabotaged Sessions Admin</div></div>
+    <h2>Unlock Admin</h2>
+    <input id="pw" class="input" type="password" placeholder="Enter password">
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button id="tryBtn" class="btn">Unlock</button>
+      <button id="demoBtn" class="btn ghost" title="Demo mode (read-only)">Demo</button>
+    </div>
+    <div id="err" class="error">Wrong password</div>
+    <div style="margin-top:12px" class="small muted">This panel edits JSON files (news.json, credits.json, gallery.json). GitHub pushes require a PAT.</div>
+  </div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="wrap" style="visibility:hidden" id="mainWrap">
+  <aside class="sidebar">
+    <div class="brand"><div class="mark">⚠️</div><div><div class="title">sabotaged sessions</div><div class="small muted">admin panel</div></div></div>
+
+    <div class="nav" role="navigation" aria-label="admin sections">
+      <button data-section="news" class="active">News Editor</button>
+      <button data-section="credits">Credits Editor</button>
+      <button data-section="gallery">Gallery Editor</button>
+      <button data-section="settings">Site Settings</button>
+      <div style="flex:1"></div>
+      <div class="small muted">local history</div>
+      <div class="history" id="historyBox"></div>
+      <div style="margin-top:8px">
+        <button id="downloadAll" class="btn ghost" style="width:100%">Download All JSON</button>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <section class="panel">
+      <div id="newsSection" class="section" style="display:block">
+        <h3 style="margin-top:0;color:var(--accent)">News Editor</h3>
+        <div class="grid">
+          <div>
+            <textarea id="newsEditor" placeholder='[{"title":"...","date":"...","content":"..."}]'></textarea>
+            <div class="controls">
+              <button id="previewNews" class="btn">Live Preview</button>
+              <button id="saveNews" class="btn">Download news.json</button>
+              <button id="pushNews" class="btn ghost">Push to GitHub</button>
+              <div style="flex:1"></div>
+              <div class="small muted">Auto-saves in browser history</div>
+            </div>
+          </div>
+
+          <aside>
+            <div class="cardPreview">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div><strong>Live Preview</strong><div class="small muted">Render of top item</div></div>
+                <div class="small muted" id="previewCount">0 items</div>
+              </div>
+              <div id="previewArea" style="margin-top:12px"></div>
+            </div>
+
+            <div style="height:12px"></div>
+
+            <div class="cardPreview">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <strong>History</strong><button id="clearHist" class="btn ghost" style="padding:6px;font-size:12px">Clear</button>
+              </div>
+              <div id="newsHistory" style="margin-top:8px;max-height:150px;overflow:auto"></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <div id="creditsSection" class="section" style="display:none">
+        <h3 style="margin-top:0;color:var(--accent)">Credits Editor</h3>
+        <div style="display:grid;grid-template-columns:1fr 320px;gap:12px">
+          <div>
+            <textarea id="creditsEditor" placeholder='[{"role":"...","people":[{"name":"...","credit":"..."}]}]'></textarea>
+            <div class="controls">
+              <button id="saveCredits" class="btn">Download credits.json</button>
+              <button id="pushCredits" class="btn ghost">Push to GitHub</button>
+              <div style="flex:1"></div>
+            </div>
+          </div>
+          <aside>
+            <div class="cardPreview">
+              <strong>Credits Preview</strong>
+              <div id="creditsPreview" style="margin-top:8px" class="small muted"></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <div id="gallerySection" class="section" style="display:none">
+        <h3 style="margin-top:0;color:var(--accent)">Gallery Editor</h3>
+        <div style="display:grid;grid-template-columns:1fr 320px;gap:12px">
+          <div>
+            <textarea id="galleryEditor" placeholder='[{"image":"assets/img.png","caption":"..."}]'></textarea>
+            <div class="controls">
+              <button id="saveGallery" class="btn">Download gallery.json</button>
+              <button id="pushGallery" class="btn ghost">Push to GitHub</button>
+              <div style="flex:1"></div>
+            </div>
+          </div>
+          <aside>
+            <div class="cardPreview">
+              <strong>Gallery Preview</strong>
+              <div id="galleryPreviewArea" style="margin-top:8px" class="small muted"></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <div id="settingsSection" class="section" style="display:none">
+        <h3 style="margin-top:0;color:var(--accent)">Site Settings</h3>
+        <div style="display:grid;grid-template-columns:1fr 320px;gap:12px">
+          <div>
+            <textarea id="settingsEditor" placeholder='{"siteTitle":"...","featureFlags":{}}'></textarea>
+            <div class="controls">
+              <button id="saveSettings" class="btn">Download settings.json</button>
+              <button id="pushSettings" class="btn ghost">Push to GitHub</button>
+            </div>
+          </div>
+          <aside>
+            <div class="cardPreview">
+              <strong>GitHub Push (optional)</strong>
+              <div style="margin-top:8px" class="small muted">Enter a PAT when you press push; token is used client-side only.</div>
+              <div style="margin-top:8px">
+                <input id="ghRepo" style="width:100%;padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:#fff" placeholder="owner/repo">
+                <input id="ghBranch" style="width:100%;padding:8px;margin-top:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:#fff" placeholder="branch (main)" value="main">
+                <input id="ghToken" type="password" style="width:100%;padding:8px;margin-top:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:#fff" placeholder="Paste PAT (kept in memory only)">
+                <div class="small muted" style="margin-top:8px">Warning: PAT is sent to GitHub directly from your browser. Do not paste tokens you can't revoke.</div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer small muted">Sabotaged Sessions Admin • Edits are client-side — use Download to save or Push to GitHub with PAT</div>
+  </main>
+</div>
+
+<script>
+/* ---------- Password lock ---------- */
+const overlay = document.getElementById('overlay');
+const mainWrap = document.getElementById('mainWrap');
+
+// base64 encoded password: SabotagedSessionsAdmin
+const encoded = "U2Fib3RhZ2VkU2Vzc2lvbnNBYWRtaW4=";
+const plain = atob(encoded);
+
+document.getElementById('tryBtn').addEventListener('click', tryUnlock);
+document.getElementById('demoBtn').addEventListener('click', ()=>{ openDemo(); });
+
+function tryUnlock(){
+  const v = document.getElementById('pw').value || "";
+  if(v === plain){
+    overlay.style.display='none';
+    mainWrap.style.visibility='visible';
+    loadAll();
+  } else {
+    const err = document.getElementById('err'); err.style.display='block';
+    setTimeout(()=>err.style.display='none',1700);
+  }
+}
+function openDemo(){
+  overlay.style.display='none';
+  mainWrap.style.visibility='visible';
+  loadAll(true);
+}
+
+/* ---------- UI Nav ---------- */
+document.querySelectorAll('.nav button').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    const sec = b.dataset.section;
+    ['news','credits','gallery','settings'].forEach(s=>{
+      document.getElementById(s+'Section').style.display = (s===sec ? 'block' : 'none');
+    });
+  });
+});
+
+/* ---------- Local History ---------- */
+function addHistory(key, content){
+  const hKey = 'admin_history_v1';
+  let hist = JSON.parse(localStorage.getItem(hKey) || '[]');
+  hist.unshift({k:key,t:Date.now(),c:content});
+  if(hist.length>60) hist=hist.slice(0,60);
+  localStorage.setItem(hKey, JSON.stringify(hist));
+  renderHistory();
+}
+function renderHistory(){
+  const hKey='admin_history_v1';
+  const out = document.getElementById('historyBox');
+  if(!out) return;
+  let hist = JSON.parse(localStorage.getItem(hKey) || '[]');
+  out.innerHTML = hist.slice(0,8).map(h=>`<div class="histRow">${new Date(h.t).toLocaleString()} • ${h.k}</div>`).join('');
+}
+document.getElementById('clearHist').addEventListener('click', ()=>{ localStorage.removeItem('admin_history_v1'); renderHistory(); });
+
+/* ---------- Load / Save helpers ---------- */
+async function fetchText(path){
+  try{
+    const r = await fetch(path + '?_=' + Date.now());
+    if(!r.ok) return null;
+    return await r.text();
+  }catch(e){ return null; }
+}
+
+function downloadFile(filename, content){
+  const blob = new Blob([content], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+}
+
+/* ---------- Load all JSON into editors ---------- */
+async function loadAll(demo=false){
+  renderHistory();
+  const newsTxt = await fetchText('news.json') || '[]';
+  const creditsTxt = await fetchText('credits.json') || '[]';
+  const galleryTxt = await fetchText('gallery.json') || '[]';
+  const settingsTxt = await fetchText('settings.json') || '{}';
+
+  document.getElementById('newsEditor').value = newsTxt;
+  document.getElementById('creditsEditor').value = creditsTxt;
+  document.getElementById('galleryEditor').value = galleryTxt;
+  document.getElementById('settingsEditor').value = settingsTxt;
+
+  renderNewsPreview(); renderCreditsPreview(); renderGalleryPreview();
+
+  // history
+  if(!demo){
+    addHistory('load_all','Loaded JSON');
+  } else {
+    addHistory('demo_load','Demo mode load');
+  }
+}
+
+/* ---------- News preview & interactions ---------- */
+document.getElementById('previewNews').addEventListener('click', renderNewsPreview);
+document.getElementById('saveNews').addEventListener('click', ()=>{ downloadFile('news.json', document.getElementById('newsEditor').value); addHistory('news_download', document.getElementById('newsEditor').value); });
+document.getElementById('pushNews').addEventListener('click', ()=>{ pushToGitHub('news.json', document.getElementById('newsEditor').value); });
+
+function renderNewsPreview(){
+  const raw = document.getElementById('newsEditor').value.trim();
+  let data = [];
+  try{ data = JSON.parse(raw); }catch(e){ document.getElementById('previewArea').innerHTML = '<div class="small muted">Invalid JSON — fix formatting.</div>'; return; }
+  document.getElementById('previewCount').textContent = `${data.length} items`;
+  const out = document.getElementById('previewArea');
+  out.innerHTML = '';
+  if(!data.length){ out.innerHTML = '<div class="small muted">No news items</div>'; return; }
+  const item = data[0];
+  const node = document.createElement('div'); node.className='newsItem';
+  node.innerHTML = `<h4>${escapeHtml(item.title||'Untitled')}</h4><div class="date">${new Date(item.date||Date.now()).toLocaleString()}</div><div>${escapeHtml(item.content||'')}</div>`;
+  out.appendChild(node);
+  // store history
+  addHistory('news_preview', JSON.stringify({t:Date.now(),title:item.title||''}));
+  // populate history panel
+  const hist = document.getElementById('newsHistory');
+  hist.innerHTML = (JSON.parse(localStorage.getItem('admin_history_v1')||'[]')).slice(0,16).map(h=>`<div class="histRow">${new Date(h.t).toLocaleString()} • ${h.k}</div>`).join('');
+}
+
+/* ---------- Credits preview ---------- */
+document.getElementById('saveCredits').addEventListener('click', ()=>{ downloadFile('credits.json', document.getElementById('creditsEditor').value); addHistory('credits_download', document.getElementById('creditsEditor').value); });
+document.getElementById('pushCredits').addEventListener('click', ()=>{ pushToGitHub('credits.json', document.getElementById('creditsEditor').value); });
+
+function renderCreditsPreview(){
+  const raw = document.getElementById('creditsEditor').value.trim();
+  try{ var data = JSON.parse(raw); }catch(e){ document.getElementById('creditsPreview').innerHTML = '<div class="small muted">Invalid JSON</div>'; return; }
+  if(!Array.isArray(data) || !data.length){ document.getElementById('creditsPreview').innerHTML = '<div class="small muted">No credits</div>'; return; }
+  document.getElementById('creditsPreview').innerHTML = data.slice(0,6).map(g=>`<div style="margin-bottom:8px"><strong>${escapeHtml(g.role)}</strong><div class="small muted">${(g.people||[]).slice(0,3).map(p=>escapeHtml(p.name)).join(', ')}</div></div>`).join('');
+}
+
+/* ---------- Gallery preview ---------- */
+document.getElementById('saveGallery').addEventListener('click', ()=>{ downloadFile('gallery.json', document.getElementById('galleryEditor').value); addHistory('gallery_download', document.getElementById('galleryEditor').value); });
+document.getElementById('pushGallery').addEventListener('click', ()=>{ pushToGitHub('gallery.json', document.getElementById('galleryEditor').value); });
+
+function renderGalleryPreview(){
+  const raw = document.getElementById('galleryEditor').value.trim();
+  try{ var data = JSON.parse(raw); }catch(e){ document.getElementById('galleryPreviewArea').innerHTML = '<div class="small muted">Invalid JSON</div>'; return; }
+  if(!Array.isArray(data) || !data.length){ document.getElementById('galleryPreviewArea').innerHTML = '<div class="small muted">No gallery</div>'; return; }
+  document.getElementById('galleryPreviewArea').innerHTML = data.slice(0,6).map(i=>`<div style="margin-bottom:8px"><img src="${escapeHtml(i.image||'')}" style="width:100%;border-radius:6px;display:block;margin-bottom:6px"/><div class="small muted">${escapeHtml(i.caption||'')}</div></div>`).join('');
+}
+
+/* ---------- Settings ---------- */
+document.getElementById('saveSettings').addEventListener('click', ()=>{ downloadFile('settings.json', document.getElementById('settingsEditor').value); addHistory('settings_download', document.getElementById('settingsEditor').value); });
+document.getElementById('pushSettings').addEventListener('click', ()=>{ pushToGitHub('settings.json', document.getElementById('settingsEditor').value); });
+
+/* ---------- Download All ---------- */
+document.getElementById('downloadAll').addEventListener('click', async ()=>{
+  const news = document.getElementById('newsEditor').value || '[]';
+  const credits = document.getElementById('creditsEditor').value || '[]';
+  const gallery = document.getElementById('galleryEditor').value || '[]';
+  const blob = new Blob([JSON.stringify({news:JSON.parse(news||'[]'),credits:JSON.parse(credits||'[]'),gallery:JSON.parse(gallery||'[]')},null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='sabotaged_export.json'; a.click();
+});
+
+/* ---------- GitHub Push (client-side) ---------- */
+async function pushToGitHub(path, contentStr){
+  const repo = document.getElementById('ghRepo').value.trim();
+  const branch = document.getElementById('ghBranch').value.trim() || 'main';
+  const token = document.getElementById('ghToken').value.trim();
+  if(!repo || !token){ alert('Enter repo and PAT in Site Settings first'); return; }
+  if(!confirm('Push ' + path + ' to ' + repo + ' on branch ' + branch + '? This will create a commit via GitHub API.')) return;
+  try{
+    // get current sha if exists
+    const api = `https://api.github.com/repos/${repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(branch)}`;
+    const get = await fetch(api, {headers:{Authorization:'token ' + token}});
+    let sha = null;
+    if(get.ok){ const j = await get.json(); sha = j.sha; }
+    const putApi = `https://api.github.com/repos/${repo}/contents/${encodeURIComponent(path)}`;
+    const body = { message: `Update ${path} via Admin Panel`, content: btoa(unescape(encodeURIComponent(contentStr))), branch: branch };
+    if(sha) body.sha = sha;
+    const put = await fetch(putApi, {method:'PUT', headers:{Authorization:'token ' + token,'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    const res = await put.json();
+    if(res.content){ alert('Pushed! commit: ' + res.commit.sha); addHistory('gh_push_'+path, path); }
+    else { alert('Push failed: ' + (res.message || JSON.stringify(res))); console.error(res); }
+  }catch(e){ alert('Error pushing: ' + e.message); console.error(e); }
+}
+
+/* ---------- Utility ---------- */
+function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* ---------- Initial small renders for safety ---------- */
+renderNewsPreview(); renderCreditsPreview(); renderGalleryPreview();
+renderHistory();
+</script>
+</body>
+</html>
